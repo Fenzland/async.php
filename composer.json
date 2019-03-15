@@ -1,0 +1,39 @@
+{
+	"name": "fenzland/async"
+	,
+	"description": "A asynchronous library for PHP"
+	,
+	"type": "library"
+	,
+	"license": "MIT"
+	,
+	"authors": [
+		{
+			"name": "fenz"
+			,
+			"email": "fenzland@163.com"
+		}
+	]
+	,
+	"autoload": {
+		"psr-4": {
+			"Async\\": "src"
+		}
+	}
+	,
+	"require": {
+		"php": ">=7.1.0"
+	}
+	,
+	"require-dev": {
+		"phpunit/phpunit": "^8.0"
+	}
+	,
+	"repositories": [
+		{
+			"type": "composer"
+			,
+			"url": "https://packagist.phpcomposer.com"
+		}
+	]
+}
