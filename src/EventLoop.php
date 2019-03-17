@@ -14,16 +14,7 @@ final class EventLoop implements IEventLoop
 	use Helpers\TWithGetters;
 	
 	/**
-	 * The proxy for access.
-	 * 
-	 * @access private
-	 * 
-	 * @var    callable
-	 */
-	private $_proxy;
-	
-	/**
-	 * The process queue to run.
+	 * The task queue to run.
 	 * 
 	 * @access private
 	 * 
@@ -32,11 +23,11 @@ final class EventLoop implements IEventLoop
 	private $_queue= [];
 	
 	/**
-	 * The process queue to run.
+	 * The task queue to run.
 	 * 
 	 * @access private
 	 * 
-	 * @var    array[[ 'process'=>callable, 'call_at'=>int, ]]
+	 * @var    array[[ 'task'=>callable, 'call_at'=>int, ]]
 	 */
 	private $_timeout_queue= [];
 	
@@ -57,14 +48,16 @@ final class EventLoop implements IEventLoop
 	 * @param  callable $main
 	 * @param  bool     $runImmediately   valid values are self::RUN_IMMEDIATELY and self::RUN_LATER
 	 */
-	public function __construct( callable$main, bool$runImmediately=self::RUN_IMMEDIATELY )
+	public function __construct( ?callable$main=null )
 	{
-		$this->_proxy= new EventLoop\Proxy( $this );
-		
-		$this->push( $main );
-		
-		if( $runImmediately )
+		if( $main )
+		{
+			$this->push( function()use( $main ){
+				$main( new EventLoop\Proxy( $this ) );
+			} );
+			
 			$this->run();
+		}
 	}
 	
 	/**
@@ -151,14 +144,11 @@ final class EventLoop implements IEventLoop
 	 * 
 	 * @return void
 	 */
-	private function _step()
+	private function _step():void
 	{
-		$process= array_shift( $this->_queue );
+		$task= array_shift( $this->_queue );
 		
-		if(!( $process instanceof \Closure ))
-			$process= \Closure::fromCallable( $process );
-		
-		$process->call( $this->_proxy );
+		$this->_runTask( $task );
 	}
 	
 	/**
@@ -168,19 +158,39 @@ final class EventLoop implements IEventLoop
 	 * 
 	 * @return void
 	 */
-	private function _stepTimeout()
+	private function _stepTimeout():void
 	{
 		if( $this->_timeout_queue[0]['call_at'] <= microtime( true ) )
 		{
-			[ 'process'=>$process, ]= array_shift( $this->_timeout_queue );
+			[ 'task'=>$task, ]= array_shift( $this->_timeout_queue );
 			
-			if(!( $process instanceof \Closure ))
-				$process= \Closure::fromCallable( $process );
-			
-			$process->call( $this );
+			$this->_runTask( $task );
 		}
 		else
 			usleep( 1000 );
+	}
+	
+	/**
+	 * Run a task.
+	 * 
+	 * @access private
+	 * 
+	 * @param  callable $task
+	 * 
+	 * @return void
+	 */
+	private function _runTask( callable$task ):void
+	{
+		if(!( $task instanceof \Closure ))
+			$task= \Closure::fromCallable( $task );
+		
+		$next= $task();
+		
+		if( $next === self::AGAIN )
+			$next= $task;
+		
+		if( $next && is_callable( $next ) )
+			$this->push( $next );
 	}
 	
 	/**
@@ -223,57 +233,57 @@ final class EventLoop implements IEventLoop
 	}
 	
 	/**
-	 * push a process to this event loop
+	 * push a task to this event loop
 	 * 
 	 * @access public
 	 * 
-	 * @param  callable $process
+	 * @param  callable $task
 	 * 
 	 * @return viod
 	 */
-	public function push( callable$process ):void
+	public function push( callable$task ):void
 	{
 		$this->ensureUnclosed();
 		
-		array_push( $this->_queue, $process );
+		array_push( $this->_queue, $task );
 		
 		if( $this->_status === self::STATUSES['DONE'] )
 			$this->_status= self::STATUSES['PAUSED'];
 	}
 	
 	/**
-	 * push a timeout process to this event loop
+	 * push a timeout task to this event loop
 	 * 
 	 * @access public
 	 * 
-	 * @param  callable $process
+	 * @param  callable $task
 	 * @param  int $timeout
 	 * 
 	 * @return viod
 	 */
-	public function setTimeout( callable$process, int$timeout ):void
+	public function setTimeout( callable$task, int$timeout ):void
 	{
 		$this->ensureUnclosed();
 		
 		$call_at= microtime( true ) + $timeout/1000;
 		
-		$this->_insertTimeoutQueue( $call_at, $process );
+		$this->_insertTimeoutQueue( $call_at, $task );
 		
 		if( $this->_status === self::STATUSES['DONE'] )
 			$this->_status= self::STATUSES['PAUSED'];
 	}
 	
 	/**
-	 * Insert a process into the timeout queue.
+	 * Insert a task into the timeout queue.
 	 * 
 	 * @access private
 	 *
 	 * @param  float    $call_at
-	 * @param  callable $process
+	 * @param  callable $task
 	 * 
 	 * @return void
 	 */
-	private function _insertTimeoutQueue( float$call_at, callable$process ):void
+	private function _insertTimeoutQueue( float$call_at, callable$task ):void
 	{
 		$floor= 0;
 		$ceil= sizeof( $this->_timeout_queue );
@@ -288,7 +298,7 @@ final class EventLoop implements IEventLoop
 				$floor= $half + 1;
 		}
 		
-		array_splice( $this->_timeout_queue, $floor, 0, [ [ 'process'=>$process, 'call_at'=>$call_at, ], ] );
+		array_splice( $this->_timeout_queue, $floor, 0, [ [ 'task'=>$task, 'call_at'=>$call_at, ], ] );
 	}
 	
 }

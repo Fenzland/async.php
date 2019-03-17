@@ -3,6 +3,21 @@
 
 require __DIR__.'/vendor/autoload.php';
 
+$a= function(){
+	
+	yield 0;
+	yield 0;
+	return 0;
+};
+$g= $a();
+var_dump( $g->current() );
+var_dump( $g->send(1) );
+var_dump( $g->valid()?$g->current():$g->getReturn() );
+var_dump( $g->send(1) );
+var_dump( $g->valid()?$g->current():$g->getReturn() );
+
+
+return;
 use Async\EventLoop;
 
 $el= new EventLoop( function( $eventLoop ){

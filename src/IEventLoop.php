@@ -10,7 +10,7 @@ interface IEventLoop extends EventLoop\IProxy
 {
 	
 	/**
-	 * valid statuses of an event loop.
+	 * Valid statuses of an event loop.
 	 */
 	const STATUSES= [
 		'FRESH'   =>  0,
@@ -21,9 +21,7 @@ interface IEventLoop extends EventLoop\IProxy
 	];
 	
 	/**
-	 * run at constructing or later.
+	 * Tasks return this value to tell event loop to run the task again
 	 */
-	const RUN_IMMEDIATELY= true;
-	const RUN_LATER= false;
-	
+	const AGAIN= INF;
 }

@@ -8,6 +8,7 @@ namespace Async;
 
 class FileSystem
 {
+	use TWithEventLoop;
 	
 	/**
 	 * Method read
@@ -20,11 +21,24 @@ class FileSystem
 	 */
 	public function read( string$file_name ):Promise
 	{
-		$handle= fopen( $file_name, 'r' );
-		stream_set_blocking( $handle, false );
-		
-		$this->_event_loop->push( function(){
+		return new Promise( $this->_event_loop, function( $resolve, $reject ){
+			$handle= fopen( $file_name, 'r' );
+			stream_set_blocking( $handle, false );
 			
+			$content= '';
+			
+			$this->_event_loop->push( function()use( &$content, $resolve ){
+				$line= fgets( $handle );
+				if( false !== $line )
+					$content.= $line;
+				
+				if( feof( $handle ) )
+					return function()use( $content ){
+						$resolve( $content );
+					};
+				else
+					return EventLoop::AGAIN;
+			} );
 		} );
 	}
 	

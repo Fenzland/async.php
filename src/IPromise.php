@@ -10,6 +10,16 @@ interface IPromise
 {
 	
 	/**
+	 * Statuses of an event loop.
+	 */
+	const STATUSES= [
+		'PENDING'   =>  0,
+		'FULFILLED' =>  1,
+		'RESOLVED'  =>  1,
+		'REJECTED'  => -1,
+	];
+	
+	/**
 	 * Method then
 	 * 
 	 * @abstract
