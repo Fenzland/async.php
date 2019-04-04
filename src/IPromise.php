@@ -30,7 +30,7 @@ interface IPromise
 	 * 
 	 * @return self
 	 */
-	function then( callable$onResolve, callable$onReject ):self;
+	function then( callable$onResolve, callable$onReject=null ):self;
 	
 	/**
 	 * Method catch
@@ -45,15 +45,15 @@ interface IPromise
 	function catch( callable$onReject ):self;
 	
 	/**
-	 * Method finaly
+	 * Method finally
 	 * 
 	 * @abstract
 	 * @access public
 	 * 
-	 * @param  callable $finaly
+	 * @param  callable $finally
 	 * 
 	 * @return self
 	 */
-	function finaly( callable$finaly ):self;
+	function finally( callable$finally ):self;
 	
 }

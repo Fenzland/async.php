@@ -1,7 +1,44 @@
 #!/usr/bin/env php
 <?php
 
+error_reporting(E_ALL);
+ini_set( 'display_errors', 'on' );
+
 require __DIR__.'/vendor/autoload.php';
+
+$event_loop= new Async\EventLoop();
+
+// $promise= new Async\Promise( $event_loop, function($a,$b){
+// 	$a( 'value-value' );
+// } );
+
+// z( 'ready' );
+// $promise->then( function($v){
+// 	z( $v );
+// } );
+// z( 'ok' );
+
+$async= new Async\Async( $event_loop );
+
+$a= 1;
+z( '1' );
+$async->run( function()use( &$a ){
+z( '2' );
+	$a=2;
+z( '3' );
+	$a= yield 3;
+z( '5' );
+} );
+z( '4' );
+
+z( 2===$a );
+
+$event_loop->push( function()use( $a ){
+	z( 9===$a );
+} );
+
+$event_loop->run();
+return;
 
 $a= function(){
 	

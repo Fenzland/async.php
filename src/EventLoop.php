@@ -61,6 +61,30 @@ final class EventLoop implements IEventLoop
 	}
 	
 	/**
+	 * Method __destruct
+	 * 
+	 * @access public
+	 */
+	public function __destruct()
+	{
+		switch( $this->_status )
+		{
+			default:
+			case self::STATUSES['DONE']:
+			case self::STATUSES['CLOSED']:
+			break;
+			
+			case self::STATUSES['RUNNING']:
+				$this->_status= self::STATUSES['PAUSED'];
+			
+			case self::STATUSES['FRESH']:
+			case self::STATUSES['PAUSED']:
+				$this->run();
+			break;
+		}
+	}
+	
+	/**
 	 * Run the event loop.
 	 * 
 	 * @access public
@@ -128,6 +152,9 @@ final class EventLoop implements IEventLoop
 	private function _loop():void
 	{
 		while( true )
+			if( $this->_status === self::STATUSES['PAUSED'] )
+				break;
+			else
 			if( $this->_queue )
 				$this->_step();
 			else
@@ -223,11 +250,11 @@ final class EventLoop implements IEventLoop
 	/**
 	 * getter of status
 	 * 
-	 * @access public
+	 * @access protected
 	 * 
 	 * @return int
 	 */
-	public function __get__status():int
+	protected function __get__status():int
 	{
 		return $this->_status;
 	}

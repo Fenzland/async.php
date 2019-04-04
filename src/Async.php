@@ -21,41 +21,51 @@ class Async
 	 */
 	public function run( callable$task ):Promise
 	{
-		new Promise( $this->event_loop, function( $resolve, $reject ){
+		return new Promise( $this->_event_loop, function( $resolve, $reject )use( $task ){
 			
 			$gen= $task();
 			
 			if(!( $gen instanceof \Generator ) )
 				return $resolve( $gen );
 			
-			$Aa= $Bb= null;
+			$connect= $step= null;
 			
-			$Aa= function()use( $gen, &$Bb ){
+			$connect= function()use( $gen, &$step ){
 				$current= $gen->current();
 				
-				if( !is_thenable( $current ) )
-					$current= Promise::resolve( $this->event_loop, $current );
+				if( !self::is_thenable( $current ) )
+					$current= Promise::resolve( $this->_event_loop, $current );
 				
-				$current->then( $Bb );
+				$current->then( $step );
 			};
 			
-			$Bb= function( $value )use( $gen, &$Aa ){
+			$step= function( $value )use( $gen, $resolve, &$connect ){
 				$gen->send( $value );
 				
 				if( $gen->valid() )
-					$Aa();
+					$connect();
 				else
 					$resolve( $gen->getReturn() );
 			};
 			
-			$this->event_loop->push( $Aa );
-			
+			$connect();
 		} );
 	}
 	
-}
-
-function is_thenable( $value )
-{
-	return is_object( $result ) && method_exists( $result, 'then' );
+	/**
+	 * Static method is_thenable
+	 * 
+	 * @static
+	 * 
+	 * @access public
+	 *
+	 * @param  mixed $value
+	 * 
+	 * @return bool
+	 */
+	static public function is_thenable( $value ):bool
+	{
+		return is_object( $value ) && method_exists( $value, 'then' );
+	}
+	
 }

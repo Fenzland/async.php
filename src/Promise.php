@@ -46,12 +46,21 @@ class Promise implements IPromise
 	private $_reason;
 	
 	/**
+	 * Wheter this promise is catched.
+	 *
+	 * @access private
+	 *
+	 * @var    bool
+	 */
+	private $_catched= false;
+	
+	/**
 	 * Constructor
 	 * 
 	 * @access public
 	 * 
-	 * @param  IEventLoop $make
-	 * @param  callable $make
+	 * @param  IEventLoop $event_loop
+	 * @param  callable   $make
 	 */
 	public function __construct( IEventLoop$event_loop, callable$make )
 	{
@@ -73,7 +82,20 @@ class Promise implements IPromise
 		}
 		catch( \Throwable$reason )
 		{
-			$this->reason= $reason;
+			$this->_reason= $reason;
+		}
+	}
+	
+	/**
+	 * Destructor
+	 * 
+	 * @access public
+	 */
+	public function __destruct()
+	{
+		if( $this->_reason && !$this->_catched )
+		{
+			throw $this->_reason;
 		}
 	}
 	
@@ -85,12 +107,15 @@ class Promise implements IPromise
 	 * @param  ?callable $onResolve
 	 * @param  ?callable $onReject
 	 * 
-	 * @return self
+	 * @return IPromise
 	 */
-	public function then( ?callable$onResolve, ?callable$onReject ):self
+	public function then( ?callable$onResolve, ?callable$onReject=null ):IPromise
 	{
-		new self( $this->_event_loop, function( $resolve, $reject ){
-			$this->_event_loop->push( function(){
+		if( $onReject )
+			$this->_catched= true;
+		
+		return new self( $this->_event_loop, function( $resolve, $reject )use( $onResolve, $onReject ){
+			$this->_event_loop->push( function()use( $resolve, $reject, $onResolve, $onReject ){
 				switch( $this->_status )
 				{
 					case self::STATUSES['PENDING']:
@@ -104,7 +129,7 @@ class Promise implements IPromise
 					break;
 					
 					case self::STATUSES['REJECTED']:
-						$reject(
+						$resolve(
 							$onReject( $this->_reason )
 						);
 					break;
@@ -120,29 +145,46 @@ class Promise implements IPromise
 	 * 
 	 * @param  callable $onReject
 	 * 
-	 * @return self
+	 * @return IPromise
 	 */
-	public function catch( callable$onReject ):self
+	public function catch( callable$onReject ):IPromise
 	{
 		return $this->then( null, $onReject );
 	}
 	
 	/**
-	 * Method finaly
+	 * Method finally
 	 * 
 	 * @access public
 	 * 
-	 * @param  callable $finaly
+	 * @param  callable $finally
 	 * 
-	 * @return self
+	 * @return IPromise
 	 */
-	public function finaly( callable$finaly ):self
+	public function finally( callable$finally ):IPromise
 	{
-		$finaly= function()use( $finaly ){
-			$finaly();
-		};
-		
-		return $this->then( $finaly, $finaly );
+		return new self( $this->_event_loop, function( $resolve, $reject )use( $finally ){
+			$this->_event_loop->push( function()use( $resolve, $reject, $finally ){
+				switch( $this->_status )
+				{
+					case self::STATUSES['PENDING']:
+						return EventLoop::AGAIN;
+					break;
+					
+					case self::STATUSES['RESOLVED']:
+						$finally();
+						
+						$resolve( $this->_value );
+					break;
+					
+					case self::STATUSES['REJECTED']:
+						$finally();
+						
+						$reject( $this->_reason );
+					break;
+				}
+			} );
+		} );
 	}
 	
 	/**
@@ -155,9 +197,9 @@ class Promise implements IPromise
 	 * @param  IEventLoop $make
 	 * @param  mixed $value
 	 * 
-	 * @return self
+	 * @return IPromise
 	 */
-	static public function resolve( IEventLoop$event_loop, $value ):self
+	static public function resolve( IEventLoop$event_loop, $value ):IPromise
 	{
 		return new self( $event_loop, function( $resolve, $reject )use( $value ){
 			$resolve( $value );
@@ -174,9 +216,9 @@ class Promise implements IPromise
 	 * @param  IEventLoop $make
 	 * @param  mixed $reason
 	 * 
-	 * @return self
+	 * @return IPromise
 	 */
-	static public function rejected( IEventLoop$event_loop, $reason ):self
+	static public function rejected( IEventLoop$event_loop, $reason ):IPromise
 	{
 		return new self( $event_loop, function( $resolve, $reject )use( $reason ){
 			$reject( $reason );
